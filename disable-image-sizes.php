@@ -2,7 +2,7 @@
 /*
 Plugin Name: Disable Image Sizes
 Description: Disable specific image sizes in WordPress.
-Version: 1.6
+Version: 1.9
 Author: Dr. Sabbir H
 Author URI: http://sabbirh.com/
 Text Domain: disable-image-sizes
@@ -18,25 +18,32 @@ if (!class_exists('DIS_Disable_Image_Sizes')) {
             register_activation_hook(__FILE__, array($this, 'on_activation'));
             add_action('admin_menu', array($this, 'create_settings_page'));
             add_action('admin_init', array($this, 'register_settings'));
-            add_action('intermediate_image_sizes_advanced', array($this, 'disable_selected_image_sizes'));
+            add_action('admin_init', array($this, 'apply_filters'));
             add_action('admin_init', array($this, 'redirect_to_settings_page'));
             add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'add_settings_link'));
-            add_action('init', array($this, 'maybe_disable_big_image_size_threshold'));
-            add_action('init', array($this, 'maybe_disable_image_srcset'));
             load_plugin_textdomain('disable-image-sizes', false, dirname(plugin_basename(__FILE__)) . '/languages');
         }
 
         public function on_activation() {
-            add_option('dis_disable_image_sizes_activated', true);
+            set_transient('dis_plugin_redirect', true, 30);
         }
 
         public function redirect_to_settings_page() {
-            if (get_option('dis_disable_image_sizes_activated', false)) {
-                delete_option('dis_disable_image_sizes_activated');
-                if (!isset($_GET['activate-multi'])) {
-                    wp_redirect(admin_url('admin.php?page=disable-image-sizes'));
+            if (get_transient('dis_plugin_redirect')) {
+                delete_transient('dis_plugin_redirect');
+                if (is_admin() && !isset($_GET['activate-multi'])) {
+                    wp_safe_redirect(admin_url('admin.php?page=disable-image-sizes'));
                     exit;
                 }
+            }
+        }
+
+        public function apply_filters() {
+            $options = get_option('dis_disable_image_sizes_options', array());
+            if (!empty($options)) {
+                add_filter('intermediate_image_sizes_advanced', array($this, 'disable_selected_image_sizes'));
+                add_filter('big_image_size_threshold', array($this, 'disable_big_image_size_threshold'));
+                add_filter('wp_calculate_image_srcset', array($this, 'disable_image_srcset'));
             }
         }
 
@@ -65,7 +72,7 @@ if (!class_exists('DIS_Disable_Image_Sizes')) {
                 <form method="post" action="options.php">
                     <?php
                     settings_fields('disable_image_sizes');
-                    $options = get_option('dis_disable_image_sizes_options');
+                    $options = get_option('dis_disable_image_sizes_options', array());
                     $sizes = $this->get_all_image_sizes();
                     ?>
                     <table class="form-table">
@@ -121,11 +128,11 @@ if (!class_exists('DIS_Disable_Image_Sizes')) {
 
         public function get_all_image_sizes() {
             global $_wp_additional_image_sizes;
-            $default_sizes = array('thumbnail', 'medium', 'large');
-            $_sizes = array();
+            $default_sizes = array('thumbnail', 'medium', 'large', 'medium_large', '1536x1536', '2048x2048');
+            $sizes = array();
 
             foreach ($default_sizes as $size) {
-                $_sizes[$size] = array(
+                $sizes[$size] = array(
                     'width' => get_option("{$size}_size_w"),
                     'height' => get_option("{$size}_size_h"),
                     'crop' => (bool) get_option("{$size}_crop")
@@ -133,40 +140,36 @@ if (!class_exists('DIS_Disable_Image_Sizes')) {
             }
 
             if (isset($_wp_additional_image_sizes) && count($_wp_additional_image_sizes)) {
-                $_sizes = array_merge($_sizes, $_wp_additional_image_sizes);
-            }
-
-            return $_sizes;
-        }
-
-        public function disable_selected_image_sizes($sizes) {
-            $options = get_option('dis_disable_image_sizes_options');
-
-            if (!is_array($options)) {
-                return $sizes;
-            }
-
-            foreach ($options as $size => $value) {
-                if ($value == 1) {
-                    unset($sizes[$size]);
-                }
+                $sizes = array_merge($sizes, $_wp_additional_image_sizes);
             }
 
             return $sizes;
         }
 
-        public function maybe_disable_big_image_size_threshold() {
-            $options = get_option('dis_disable_image_sizes_options');
-            if (isset($options['disable_big_image_size_threshold']) && $options['disable_big_image_size_threshold'] == 1) {
-                add_filter('big_image_size_threshold', '__return_false');
+        public function disable_selected_image_sizes($sizes) {
+            $options = get_option('dis_disable_image_sizes_options', array());
+            foreach ($sizes as $key => $size) {
+                if (isset($options[$key]) && $options[$key] == 1) {
+                    unset($sizes[$key]);
+                }
             }
+            return $sizes;
         }
 
-        public function maybe_disable_image_srcset() {
+        public function disable_big_image_size_threshold($threshold) {
+            $options = get_option('dis_disable_image_sizes_options');
+            if (isset($options['disable_big_image_size_threshold']) && $options['disable_big_image_size_threshold'] == 1) {
+                return false;
+            }
+            return $threshold;
+        }
+
+        public function disable_image_srcset($sources) {
             $options = get_option('dis_disable_image_sizes_options');
             if (isset($options['disable_image_srcset']) && $options['disable_image_srcset'] == 1) {
-                add_filter('wp_calculate_image_srcset', '__return_false');
+                return false;
             }
+            return $sources;
         }
 
         public function add_settings_link($links) {

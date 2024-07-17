@@ -1,11 +1,11 @@
 === Disable Image Sizes ===
-Contributors: sabbirh
+Contributors: drsabbirh
 Donate link: http://sabbirh.com/
 Tags: image sizes, disable image sizes, WordPress image sizes, image management
 Requires at least: 5.0
 Tested up to: 6.2
 Requires PHP: 7.0
-Stable tag: 1.6
+Stable tag: 1.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,10 +41,23 @@ Go to Settings->Disable Image Sizes, and check the box labeled "Disable Image Sr
 
 == Changelog ==
 
+= 1.9 =
+* Added handling for additional image sizes.
+* Finalized for WordPress.org submission.
+
+= 1.8 =
+* Added debug logging to trace issues.
+* Improved settings validation.
+
+= 1.7 =
+* Improved filter application timing.
+
 = 1.6 =
-* Added option to disable the image srcset.
-* Added option to disable the big image size threshold.
-* Updated author information and plugin to be WordPress.org ready.
+* Added option to disable image srcset.
+* Added option to disable big image size threshold.
+
+= 1.5 =
+* Improved handling of disabling image sizes.
 
 = 1.4 =
 * Added redirect to settings page upon activation.
@@ -62,8 +75,8 @@ Go to Settings->Disable Image Sizes, and check the box labeled "Disable Image Sr
 
 == Upgrade Notice ==
 
-= 1.6 =
-Added options to disable the image srcset and the big image size threshold.
+= 1.9 =
+* Ensure handling for additional image sizes.
 
 == Screenshots ==
 
