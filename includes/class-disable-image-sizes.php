@@ -6,6 +6,9 @@ if (!class_exists('DIS_Disable_Image_Sizes')) {
             add_action('admin_init', array($this, 'register_settings'));
             add_action('init', array($this, 'unregister_disabled_image_sizes')); // Unregister sizes on init
             load_plugin_textdomain('disable-image-sizes', false, dirname(plugin_basename(__FILE__)) . '/languages');
+
+            // Filter the image sizes generated during the upload process
+            add_filter('intermediate_image_sizes_advanced', array($this, 'filter_image_sizes'));
         }
 
         public function create_settings_page() {
@@ -107,14 +110,26 @@ if (!class_exists('DIS_Disable_Image_Sizes')) {
             return $sizes;
         }
 
+        // Filter the image sizes during upload and remove disabled ones
+        public function filter_image_sizes($sizes) {
+            $options = get_option('dis_disable_image_sizes_options', array());
+
+            foreach ($options as $size => $enabled) {
+                if ($enabled && isset($sizes[$size])) {
+                    unset($sizes[$size]); // Remove the disabled sizes
+                }
+            }
+
+            return $sizes;
+        }
+
         // Unregister the disabled image sizes and set them to 0x0 pixels
         public function unregister_disabled_image_sizes() {
             $options = get_option('dis_disable_image_sizes_options', array());
+
             foreach ($options as $size => $enabled) {
                 if ($enabled) {
                     remove_image_size($size); // Unregister the image size
-
-                    // Set the size dimensions to zero
                     update_option("{$size}_size_w", 0);
                     update_option("{$size}_size_h", 0);
                 }
@@ -128,15 +143,10 @@ if (!class_exists('DIS_Disable_Image_Sizes')) {
                 add_filter('wp_calculate_image_srcset', '__return_false');
             }
         }
-
-        public function disable_selected_image_sizes($sizes) {
-            $options = get_option('dis_disable_image_sizes_options', array());
-            foreach ($sizes as $key => $size) {
-                if (isset($options[$key]) && $options[$key] == 1) {
-                    unset($sizes[$key]);
-                }
-            }
-            return $sizes;
-        }
     }
+}
+
+// Initialize the plugin
+if (class_exists('DIS_Disable_Image_Sizes')) {
+    new DIS_Disable_Image_Sizes();
 }
